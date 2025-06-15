@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calcolatrice Temporale/title>
+    <title>Calcolatrice Temporale</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -11,7 +11,7 @@
             padding: 20px;
             /* Sfondo con immagini di orologi/tempo */
             background-color: #f0f0f0; /* Grigio chiaro di base */
-            background-image: url('./background.png'); /* Placeholder: Blu chiaro su grigio chiaro, sostituire con la tua immagine */
+            background-image: url('https://via.placeholder.com/600x400/A9D6F5/F0F0F0?text=Time+Pattern'); /* Placeholder: Blu chiaro su grigio chiaro, sostituire con la tua immagine */
             background-size: 150px; /* Dimensione della singola immagine nel pattern */
             background-repeat: repeat; /* Ripeti l'immagine su tutto lo sfondo */
             background-blend-mode: multiply; /* Mescola il colore di sfondo con l'immagine */
@@ -63,6 +63,14 @@
         .sidebar button:active {
             transform: translateY(0);
         }
+        /* Stile specifico per il pulsante PDF */
+        #exportPdf {
+            background-color: #dc3545; /* Un colore rosso/arancione per distinguere */
+        }
+        #exportPdf:hover {
+            background-color: #c82333;
+        }
+
         .main {
             flex: 1;
             display: flex;
@@ -150,7 +158,7 @@
 </head>
 <body>
     <div style="display: flex; flex-direction: column; align-items: center; width: 100%;">
-        <h1>Calcolatrice Temporale x Mary</h1>
+        <h1>Calcolatrice Temporale</h1>
         <div class="container">
             <div class="sidebar">
                 <button data-op="+" title="Addizione">+</button>
@@ -158,7 +166,7 @@
                 <button data-op="*" title="Moltiplicazione">x</button>
                 <button id="equals" title="Calcola risultato">=</button>
                 <button id="clear" title="Reset calcolatrice">C</button>
-            </div>
+                <button id="exportPdf" title="Esporta storico in PDF">PDF</button> </div>
             <div class="main">
                 <div class="box">
                     <div class="switches">
@@ -192,7 +200,12 @@
         </div>
     </div>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
     <script>
+        // Devo importare jsPDF dalla finestra globale dopo averla caricata
+        const { jsPDF } = window.jspdf;
+
         let currentTotalMs = 0; // Il totale corrente in millisecondi
         let pendingOperator = null; // L'operatore in attesa (es. '+', '-')
         let previousInputValueMs = null; // Memorizza l'ultimo valore inserito prima di un operatore
@@ -308,7 +321,8 @@
                 const t1 = new Date(dt1).getTime();
                 const t2 = new Date(dt2).getTime();
                 value = Math.abs(t2 - t1);
-                description = `diff(${dt1.substring(0,10)} ${dt1.substring(11,16)} - ${dt2.substring(0,10)} ${dt2.substring(11,16)})`; // Formatta per leggibilità nello storico
+                // Formatta per leggibilità nello storico: YYYY-MM-DD HH:MM
+                description = `diff(${dt1.substring(0,10)} ${dt1.substring(11,16)} - ${dt2.substring(0,10)} ${dt2.substring(11,16)})`; 
             } else if (mode === 'manual') {
                 const manual = document.getElementById("manualTime").value;
                 if (!manual) {
@@ -455,6 +469,42 @@
             historyList.scrollTop = historyList.scrollHeight; // Scorre in basso per mostrare l'ultimo elemento
         }
 
+        // --- Funzione per esportare lo storico in PDF ---
+        function exportHistoryToPdf() {
+            const doc = new jsPDF();
+            const historyItems = historyList.getElementsByTagName('li');
+            let y = 10; // Posizione iniziale Y
+
+            doc.setFontSize(16);
+            doc.text("Storico Calcolatrice Temporale", 10, y);
+            y += 10;
+
+            doc.setFontSize(12);
+            for (let i = 0; i < historyItems.length; i++) {
+                const text = historyItems[i].textContent;
+                // Aggiungi il testo, gestendo il ritorno a capo se la linea è troppo lunga
+                const splitText = doc.splitTextToSize(text, 180); // 180 è la larghezza massima
+                doc.text(splitText, 10, y);
+                y += (splitText.length * 7); // Incrementa Y in base al numero di righe e dimensione font
+
+                if (y > 280) { // Se la pagina è quasi piena, aggiungi una nuova pagina
+                    doc.addPage();
+                    y = 10;
+                }
+            }
+            
+            // Aggiungi il totale finale
+            if (currentTotalMs !== 0 || historyItems.length > 0) {
+                 doc.setFontSize(14);
+                 doc.text(`\nTotale Finale: ${msToTime(currentTotalMs)}`, 10, y + 10);
+            }
+
+
+            const date = new Date().toLocaleDateString('it-IT');
+            const time = new Date().toLocaleTimeString('it-IT');
+            doc.save(`storico_calcolatrice_${date}_${time}.pdf`);
+        }
+
         // Event Listeners per i pulsanti operatore
         document.querySelectorAll('.sidebar button[data-op]').forEach(btn => {
             btn.addEventListener('click', () => {
@@ -467,6 +517,9 @@
 
         // Event Listener per il pulsante "C" (Clear)
         document.getElementById('clear').addEventListener('click', clearCalculator);
+
+        // Event Listener per il nuovo pulsante "PDF"
+        document.getElementById('exportPdf').addEventListener('click', exportHistoryToPdf);
 
     </script>
 </body>
